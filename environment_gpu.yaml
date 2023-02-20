@@ -46,4 +46,5 @@ dependencies:
 
   - pip
   - pip:
-      - gym<=0.24.1
+      - gym==0.21.0
+      - git+https://github.com/Farama-Foundation/d4rl@master#egg=d4rl
