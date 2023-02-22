@@ -1,0 +1,20 @@
+{
+    "base": [
+        "configs/fetch_state/dwsl.yaml",
+        "configs/fetch_state/dwsl_b.yaml",
+        "configs/fetch_state/gcsl.yaml",
+        "configs/fetch_state/wgcsl.yaml",
+        "configs/fetch_state/iql.yaml",
+        "configs/fetch_state/gofar.yaml"
+    ],
+    "paired_keys": [
+        ["eval_env", "dataset_kwargs.paths"]
+    ],
+    "eval_env": ["FetchPickAndPlace-v1", "FetchPush-v1", "FetchSlide-v1"],
+    "dataset_kwargs.path": [
+        ["path/to/pick/dataset"],
+        ["path/to/push/dataset"],
+        ["path/to/slide/dataset"]
+    ],
+    "seed": [0, 1, 2, 3]
+}

@@ -1,0 +1,61 @@
+alg: DWSL_B
+alg_kwargs:
+  tau: 0.05
+  target_freq: 20
+  alpha: 1.0
+  beta: 0.05
+  clip_score: 10
+
+optim: Adam
+optim_kwargs:
+  lr: 0.0005
+
+network: ActorValuePolicy
+network_kwargs:
+  actor_class: ContinuousMLPActor
+  actor_kwargs:
+    output_act: ["import", "torch.nn", "Tanh"]
+  value_class: DiscreteMLPDistance
+  value_kwargs:
+    ensemble_size: 1
+    bins: 140
+  hidden_layers: [512, 512]
+  act: ["import", "torch.nn", "ReLU"]
+  ortho_init: True
+  dropout: 0.1
+
+# No train env, only eval env
+eval_env: kitchen-all-v0
+wrapper: KitchenGoalConditionedWrapper
+wrapper_kwargs:
+  path: ../datasets/cbet_datasets/relay_kitchen/
+
+dataset: KitchenDataset
+dataset_kwargs:
+  path: "../datasets/cbet_datasets/relay_kitchen/"
+  discount: 1.0
+  reward_fn: ["import", "research.envs.kitchen", "negative_kitchen_sparse"]
+  relabel_fraction: 1.0
+  batch_size: 512
+  nstep: 2
+
+
+processor: ConcatenateProcessor
+
+schedule: null # A learning rate schedule
+checkpoint: null # A checkpoint to initialize the model from
+
+trainer_kwargs: # Arguments given to trainer
+  total_steps: 400000 # GoFar saturates at 20*20*(500 epochs) = 200000k steps
+  log_freq: 100 # How often to log values
+  eval_freq: 10000 # How often to run evals
+  eval_fn: eval_policy
+  eval_kwargs:
+    num_ep: 20 # Number of enviornment episodes to run for evaluation, or -1 if none should be run.
+  loss_metric: reward # The validation metric that determines when to save the "best_checkpoint"
+  train_dataloader_kwargs:
+    num_workers: 0 # Number of dataloader workers.
+    batch_size: null
+    collate_fn: null
+  profile_freq: 500
+  seed: null

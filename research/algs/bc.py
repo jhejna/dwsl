@@ -6,7 +6,7 @@ import torch
 
 from research.networks.base import ActorPolicy
 
-from ..off_policy_algorithm import OffPolicyAlgorithm
+from .off_policy_algorithm import OffPolicyAlgorithm
 
 IGNORE_INDEX = -100
 

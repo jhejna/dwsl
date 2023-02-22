@@ -34,10 +34,10 @@ class GoFarNetwork(nn.Module):
         assert isinstance(observation_space, gym.spaces.Dict)
         concat_keys = concat_keys.copy()
         if "observation" not in observation_space.spaces:
-            print("[GoFar] Overrideing hide achievied goal because no 'observation' key is present in the environment.")
             concat_keys.remove("observation")
+        self.concat_keys = concat_keys
 
-        assert all([k in observation_space.spaces for k in concat_keys])
+        assert all([k in observation_space.spaces for k in self.concat_keys])
         assert "achieved_goal" in observation_space.spaces
         assert isinstance(action_space, gym.spaces.Box)
 
@@ -52,8 +52,8 @@ class GoFarNetwork(nn.Module):
         self.forward_concat_dim = concat_dim if concat_dim < 0 else concat_dim + 1
 
         # First create the encoder space
-        low = np.concatenate([observation_space[k].low for k in concat_keys], axis=concat_dim)
-        high = np.concatenate([observation_space[k].high for k in concat_keys], axis=concat_dim)
+        low = np.concatenate([observation_space[k].low for k in self.concat_keys], axis=concat_dim)
+        high = np.concatenate([observation_space[k].high for k in self.concat_keys], axis=concat_dim)
         encoder_space = gym.spaces.Box(low=low, high=high, dtype=observation_space["desired_goal"].dtype)
 
         encoder_class = vars(research.networks)[encoder_class] if isinstance(encoder_class, str) else encoder_class
@@ -76,7 +76,7 @@ class GoFarNetwork(nn.Module):
         self._value = value_class(policy_space, action_space, **_value_kwargs)
 
         # Finally construct the discriminator
-        if share_encoder and set(concat_keys) == {"achieved_goal", "desired_goal"}:
+        if share_encoder and set(self.concat_keys) == {"achieved_goal", "desired_goal"}:
             # Share the encoder
             discriminator_space = policy_space
             self._discriminator_encoder = self._encoder  # Share reference!

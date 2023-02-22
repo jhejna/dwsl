@@ -5,3 +5,4 @@ from .dwsl_b import DWSL_B
 from .gofar import GoFar
 from .iql import IQL
 from .wgcsl import WGCSL
+from .td3 import TD3

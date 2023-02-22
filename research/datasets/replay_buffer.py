@@ -269,6 +269,7 @@ class ReplayBuffer(torch.utils.data.IterableDataset):
         worker_info = torch.utils.data.get_worker_info()
         num_workers = 1 if worker_info is None else worker_info.num_workers
         worker_id = 0 if worker_info is None else worker_info.id
+        self._is_serial = worker_info is None
         self._current_data_generator = self._data_generator()
 
         if self.capacity is not None:
@@ -523,9 +524,8 @@ class ReplayBuffer(torch.utils.data.IterableDataset):
             # Allocate the buffer here.
             self._alloc()
 
-        # Setup variables for _fetch_online for getting new online data
+        # Setup variables for _fetch methods for getting new online data
         worker_info = torch.utils.data.get_worker_info()
-        self._is_serial = worker_info is None
         self._num_workers = worker_info.num_workers if worker_info is not None else 1
         self._worker_id = worker_info.id if worker_info is not None else 0
         self._episode_filenames = set()
@@ -638,6 +638,7 @@ class HindsightReplayBuffer(ReplayBuffer):
         relabel_fraction: float = 0.5,
         mark_every: int = 100,
         init_obs: bool = False,
+        terminal_threshold: Optional[float] = None,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -649,6 +650,7 @@ class HindsightReplayBuffer(ReplayBuffer):
         self.relabel_fraction = relabel_fraction
         self.mark_every = mark_every
         self.init_obs = init_obs
+        self.terminal_threshold = terminal_threshold
         assert isinstance(self.observation_space, gym.spaces.Dict), "HER Replay Buffer depends on Dict Spaces."
 
     def _extract_markers(self):
@@ -815,3 +817,44 @@ class HindsightReplayBuffer(ReplayBuffer):
         if batch_size == 1:
             batch = utils.squeeze(batch, 0)
         return batch
+
+    def _data_generator(self):
+        """
+        Overwrite the data generator to mark the horizon in offline datasets when we pass
+        some termination threshold in L2 distance.
+        """
+        if self.path is None:
+            return
+        # By default get all of the file names that are distributed at the correct index
+        worker_info = torch.utils.data.get_worker_info()
+        num_workers = 1 if worker_info is None else worker_info.num_workers
+        worker_id = 0 if worker_info is None else worker_info.id
+
+        ep_filenames = [os.path.join(self.path, f) for f in os.listdir(self.path) if f.endswith(".npz")]
+        random.shuffle(ep_filenames)  # Shuffle all the filenames
+
+        if num_workers > 1 and len(ep_filenames) == 1:
+            print(
+                "[ReplayBuffer] Warning: using multiple workers but single replay file. Reduce memory usage by sharding"
+                " data with `save` instead of `save_flat`."
+            )
+        elif num_workers > 1 and len(ep_filenames) < num_workers:
+            print("[ReplayBuffer] Warning: using more workers than dataset files.")
+
+        for ep_filename in ep_filenames:
+            ep_idx, _ = [int(x) for x in os.path.splitext(ep_filename)[0].split("_")[-2:]]
+            # Spread loaded data across workers if we have multiple workers and files.
+            if ep_idx % num_workers != worker_id and len(ep_filenames) > 1:
+                continue  # Only yield the files belonging to this worker.
+            obs, action, reward, done, discount, kwargs = load_data(ep_filename)
+            if self.terminal_threshold is not None and obs[self.goal_key].dtype == np.float32:
+                # Compute the goal distance
+                goal_distance = np.linalg.norm(obs[self.goal_key] - obs[self.achieved_key], axis=-1)
+                terminals = np.logical_or(goal_distance < self.terminal_threshold, done)
+                horizon = -100 * np.ones(terminals.shape, dtype=np.int)
+                (ends,) = np.where(terminals)
+                starts = np.concatenate(([0], ends[:-1] + 1))
+                for start, end in zip(starts, ends):
+                    horizon[start : end + 1] = np.arange(end - start + 1, 0, -1)
+                kwargs["horizon"] = horizon
+            yield (obs, action, reward, done, discount, kwargs)

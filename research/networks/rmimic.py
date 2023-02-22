@@ -1,7 +1,5 @@
 import math
-from os.path import expanduser
 
-import gdown
 import gym
 import numpy as np
 import torch

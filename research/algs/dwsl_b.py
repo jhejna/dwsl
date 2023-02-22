@@ -4,10 +4,10 @@ from typing import Dict, Optional, Type
 import numpy as np
 import torch
 
-from .base import Algorithm
+from .off_policy_algorithm import OffPolicyAlgorithm
 
 
-class DWSL_B(Algorithm):
+class DWSL_B(OffPolicyAlgorithm):
     """
     This is the same as DWSL, but it uses distributional RL for the value function.
     """
@@ -75,7 +75,7 @@ class DWSL_B(Algorithm):
             predicted_distance = -self.alpha * torch.log(torch.sum(distribution * exp_q, dim=-1))
         return torch.max(predicted_distance, dim=0)[0]
 
-    def _train_step(self, batch: Dict) -> Dict:
+    def train_step(self, batch: Dict, step: int, total_steps: int) -> Dict:
         batch["obs"] = self.network.encoder(batch["obs"])
         with torch.no_grad():
             batch["next_obs"] = self.target_network.encoder(batch["next_obs"])
@@ -92,7 +92,7 @@ class DWSL_B(Algorithm):
             next_pmf[done_mask] = 0
             next_pmf[done_mask, 0] = 1
 
-            target_distribution = next_pmf.unsqueeze(0)
+            target_distribution = next_pmf.unsqueeze(0)  # Expand for ensemble dim.
 
         # Now train the distance function with NLL loss
         logits = self.network.value(batch["obs"].detach() if self.encoder_gradients == "actor" else batch["obs"])
@@ -129,7 +129,7 @@ class DWSL_B(Algorithm):
         self.optim["value"].step()
         self.optim["actor"].step()
 
-        if self.steps % self.target_freq == 0:
+        if step % self.target_freq == 0:
             with torch.no_grad():
                 for param, target_param in zip(self.network.parameters(), self.target_network.parameters()):
                     target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)

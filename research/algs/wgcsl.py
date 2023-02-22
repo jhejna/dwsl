@@ -45,7 +45,7 @@ class WGCSL(OffPolicyAlgorithm):
         for param in self.target_network.parameters():
             param.requires_grad = False
 
-    def setup_optimizers(self, optim_class: Type[torch.optim.Optimizer], optim_kwargs: Dict) -> None:
+    def setup_optimizers(self) -> None:
         # Default optimizer initialization
         if self.encoder_gradients == "critic" or self.encoder_gradients == "both":
             critic_params = itertools.chain(self.network.critic.parameters(), self.network.encoder.parameters())
@@ -55,8 +55,8 @@ class WGCSL(OffPolicyAlgorithm):
             actor_params = itertools.chain(self.network.actor.parameters(), self.network.encoder.parameters())
         else:
             raise ValueError("Unsupported value of encoder_gradients")
-        self.optim["actor"] = optim_class(actor_params, **optim_kwargs)
-        self.optim["critic"] = optim_class(critic_params, **optim_kwargs)
+        self.optim["actor"] = self.optim_class(actor_params, **self.optim_kwargs)
+        self.optim["critic"] = self.optim_class(critic_params, **self.optim_kwargs)
 
     def train_step(self, batch: Dict, step: int, total_steps: int) -> Dict:
         batch["obs"] = self.network.encoder(batch["obs"])
@@ -108,7 +108,7 @@ class WGCSL(OffPolicyAlgorithm):
         self.optim["critic"].step()
         self.optim["actor"].step()
 
-        if self.steps % self.target_freq == 0:
+        if step % self.target_freq == 0:
             with torch.no_grad():
                 for param, target_param in zip(self.network.parameters(), self.target_network.parameters()):
                     target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)

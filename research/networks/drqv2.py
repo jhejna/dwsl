@@ -32,7 +32,6 @@ class DrQv2Encoder(nn.Module):
             channels = c
         else:
             raise ValueError("Invalid observation space for DRQV2 Image encoder.")
-        assert h == w == 84, "Incorrect spatial dimensions for DRQV2 Encoder"
         self.convnet = nn.Sequential(
             nn.Conv2d(channels, 32, 3, stride=2),
             nn.ReLU(),
@@ -58,7 +57,6 @@ class DrQv2Encoder(nn.Module):
         return gym.spaces.Box(shape=(self.repr_dim,), low=-np.inf, high=np.inf, dtype=np.float32)
 
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
-        assert obs.dtype == torch.uint8
         if len(obs.shape) == 5:
             b, s, c, h, w = obs.shape
             obs = obs.view(b, s * c, h, w)
@@ -165,6 +163,7 @@ class DiscreteDrQv2Distance(nn.Module):
         feature_dim: int = 50,
         hidden_layers: List[int] = [1024, 1024],
         ensemble_size: int = 1,
+        bins: int = 50,
         **kwargs,
     ):
         super().__init__()
@@ -172,14 +171,21 @@ class DiscreteDrQv2Distance(nn.Module):
             nn.Linear(observation_space.shape[0], feature_dim), nn.LayerNorm(feature_dim), nn.Tanh()
         )
         self.ensemble_size = ensemble_size
+        self._bins = bins
         if self.ensemble_size > 1:
-            self.mlp = EnsembleMLP(feature_dim, 1, ensemble_size=ensemble_size, hidden_layers=hidden_layers, **kwargs)
+            self.mlp = EnsembleMLP(
+                feature_dim, self.bins, ensemble_size=ensemble_size, hidden_layers=hidden_layers, **kwargs
+            )
         else:
-            self.mlp = MLP(feature_dim, 1, hidden_layers=hidden_layers, **kwargs)
+            self.mlp = MLP(feature_dim, self.bins, hidden_layers=hidden_layers, **kwargs)
         self.reset_parameters()
 
     def reset_parameters(self):
         self.apply(drqv2_weight_init)
+
+    @property
+    def bins(self):
+        return self._bins
 
     def forward(self, obs):
         v = self.trunk(obs)

@@ -4,7 +4,7 @@ import d4rl  # registers the d4rl envs
 
 # Import wrappers
 from .gym_robotics import GymSparseRewardWrapper, FetchImageWrapper
-from .ant_maze import AntMazeGoalConditionedWrapper
+from .antmaze import AntMazeGoalConditionedWrapper
 
 import gym
 from gym.envs import register
@@ -13,10 +13,9 @@ import numpy as np
 
 
 try:
-    print("[research] could not import robomimic envs")
     from .rmimic import GoalConditionedRoboMimicEnv, get_robomimc_concat_keys
 except:
-    print("[research] Could not import RoboMimic envs.")
+    print("[research] Could not import Robomimic envs.")
 
 register(id="FetchPush-v2", entry_point="research.envs.gym_robotics:ModifiedFetchPushEnv", max_episode_steps=50)
 register(id="FetchReach-v2", entry_point="research.envs.gym_robotics:ModifiedFetchReachEnv", max_episode_steps=50)

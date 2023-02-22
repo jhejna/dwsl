@@ -1,140 +1,96 @@
-# Research Lightning
+# Distance Weighted Supervised Learning (DWSL)
 
-This is a lightweight research framework designed to quickly implement and test deep learning algorithms in pytorch. This ReadMe describes the general structure of the framework and how to use each of its components. Here are some key features of the repository:
-* Support for supervised learning algorithms
-* Tensorboard logging
-* Support for reinforcement learning algorithms
-* Hardware stripping on both local machines and SLURM
+This is the official codebase for Distance Weighted Supervised Learning (DWSL) by Joey Hejna, Jensen Gao, and Dorsa Sadigh. This repository contains code for dwsl, all baselines, environments, and datasets. Our implementations are based on [research-lightning](https://github.com/jhejna/research-lightning). For more details on some of the advanced features in the repisotry, see the research-lightning repo.
 
-I would suggest reading through all the documentation. If you use this package, please cite it appropriately as described in the [License](#License) section.
+In order to run all the experiments, one must download or create the datasets.
 
 ## Installation
 
-The repository is split into multiple branches, each with a different purpose. Each branch contains implementations of standard algorithms and datasets. There are currently three main branches: main, image, and rl. Choose the branch based on the default implementations or examples you want included.
+Warning: this repository is currently setup to use experimental pytorch 2.0 features.
 
-First, create an github repository online. DO NOT initialize the repoistory with a `README`, `.gitignore`, or `lisence`. We are going to set up a repository with two remotes, one being the new repo you just created to track your project, and the other being the template repository.
-
-```
-mkdir <your project name>
-git init
-git remote add template https://github.com/jhejna/research-lightning
-git remote set-url --push template no_push
-git pull template <branch of research-lightning you want to use>
-git branch -M main
-git remote add origin https://github.com/<your-username>/<your project name>
-git push -u origin main
-```
-You should now have setup a github repository with the research-lightning base. If there are updates to the template, you can later pull them by running `git pull template <branch of research-lightning you want to use>`.
-
-After setting up the repo, there are a few steps before you can get started:
-1. Edit `environment_cpu.yaml` and `environment_gpu.yaml` as desired to include any additional dependencies via conda or pip. You can also change the name if desired.
+Here are the following steps to setup the base repository:
+1. Clone the repository to your desired location using `git clone`.
 2. Create the conda environment using `conda env create -f environment_<cpu or gpu>.yaml`.
 3. Install the research package via `pip install -e research`.
-4. Modify the `setup_shell.sh` script by updated the appropriate values as needed. The `setup_shell.sh` script should load the environment, move the shell to the repository directory, and additionally setup any external dependencies. You can add any extra code here.
+4. Modify the `setup_shell.sh` script by updating the appropriate values as needed. The `setup_shell.sh` script should load the environment, move the shell to the repository directory, and additionally setup any external dependencies. All the required flags should be at the top of the file.
 
-Other default configuration values for the sweepers, particularly slurm, can be modified at the header of `tools/run_slurm.py`.
+When using the repository, you should be able to setup the environment by running `. path/to/setup_shell.sh`.
+
+In order to run experiments for different environments and datasets, we need to set them up individually. The antmaze tasks are already handled by d4rl.
+
+### Gym Robotics
+
+For the Fetch environments, we create datasets by training oracle policies with TD3+HER, then collecting random data or noised demonstrations. For each desired environment, repeat the instructions below with a different environment name.
+
+1. Train an oracle policy:
+```
+python scripts/train.py --config configs/datasets/td3_her_fetch_pick.yaml --path path/to/output
+```
+2. Collect a state dataset using
+```
+python scripts/create_dataset.py --path dataset/output/path --num-ep 2000 --noise 2.0 --random-percent 0.0 --checkpoint path/to/model/best_model.pt
+```
+3. Collect an image dataset using the conversion script
+```
+python scripts/create_fetch_image_dataset.py --path dataset/output/path --num-ep 2000 --noise 2.0 --random-percent 0.0 --checkpoint path/to/model/best_model.pt
+```
+
+Our methods are also compatible with the datasets from WGCSL. We use the processed versions of the datasets from [GoFar]() found [here](https://drive.google.com/file/d/1niq6bK262segc7qZh8m5RRaFNygEXoBR/view). These datasets can be used by replacing the `HindsightReplayBuffer` dataset class in the configs with the `WGCSLDataset`.
+
+For the hand environment, we direclty used the above datasets. We rendered them to images for pixel experiments. Note that we also needed to fix a rendering bug in the mujoco file. To use the image versions of the Hand environments, replace the hand environment assets in your gym installation with the one found here: `https://github.com/Farama-Foundation/Gymnasium-Robotics/blob/main/gymnasium_robotics/envs/assets/hand/reach.xml`. This fixes the rendering bug documented [here](https://github.com/openai/gym/issues/2061). We recommend using `wget`  to download the file, and cp-ing it into the gym installation, whose location can by found by printing `gym.__file__`.
+
+Then, make sure to download the WGCSL datasets for running the hand experiments. To construct the image datasets, use the following script:
+```
+python scripts/create_hand_image_dataset.py --path path/to/hand/dataset --output output/storage/directory
+```
+
+### Franka Relay Kitchen
+
+For the Franka Kitchen tasks, we use the datasets from [Conditional Behavior Transformers](https://github.com/jeffacce/play-to-policy).
+
+1. Clone the relay policy learning repository `git clone https://github.com/google-research/relay-policy-learning`.
+2. Add the adept envs to your python path via `export PYTHONPATH=$PYTHONPATH:$/path/to/relay-policy-learning/adept_envs`. We add this to `setup_shell.sh`.
+3. Download the datasets [here](https://osf.io/q3dx2/) and unzip them
+4. Update the kitchen configs to point to the correct dataset path.
+
+### Robomimic Tasks
+In order to run the robomimic experiments, you need to install the [robomimic](https://robomimic.github.io/docs/introduction/installation.html) package and the [robosuite](https://robosuite.ai/) package. We install these dependencies in the following manner:
+
+Robosuite:
+1. Git clone the robosuite repository, found [here](https://github.com/ARISE-Initiative/robosuite).
+2. Checkout the `offline_study` branch
+3. install the package to the conda environment without dependencies via `pip install -e . --no-dependencies`.
+4. Relevant as of 2/14/2023: Robosuite has not updated their package to be compatible with Python 3.10. Change `from collections import Iterable` to `from collections.abc import Iterable` in `robosuite/models/arenas/multi_table_arena.py` and `robosuite/utils/placement_samplers.py`.
+5. Install `numba` via `conda install numba`.
+
+Robomimic:
+1. Git clone the robomimic repository, found [here](https://github.com/ARISE-Initiative/robosuite).
+2. install the package to the conda environment without dependencies via `pip install -e . --no-dependencies`.
+3. Download the datasets per the instructions [here](https://robomimic.github.io/docs/datasets/robomimic_v0.1.html)
+
+Finally, make sure to edit the robomimic configs correctly point to the download locations of the dataset.
 
 ## Usage
-You should be able to activate the development enviornment by running `. path/to/setup_shell.sh`. This is the same environment that will be activated when running jobs on SLURM.
 
-### Adding Your Own Research
-Training is managed by five types of objects: algorithms, networks, environments, datasets, and processors. Each has their own sub-package located within the `research` directory. Each `__init__.py` file in the subpackage exposes classes to the global trainer.
-
-All algorithms can be implemented by extending the `Algorithm` base class found in `algs/base.py`. Algorithms take in all parameters, including the class types of other objects, and run training. Most handling is already implemented, but `setup` methods may be overridden for specific functionality.
-
-Algorithms are required to have an `environment`, which for RL algorithms can be a gym environment, or for supervised learning can simply be a object containing gym spaces that dictate the models input and output spaces like the `Empty` environment implemented in `envs/base.py`.
-
-Networks must extend `nn.Module` and contain the entirety of your model. If multiple models are required, write a wrapper `network` class that contains both of them. Examples of this can be seen in the actor critic algorithms in the `rl` branch. All networks take in an observation (input) and action (output) space.
-
-All data functionality is managed through pytorch's `Dataset` and `Dataloader` classes. The `dataset` submodule should contain implementations of datasets.
-
-Finally `processors` are applied to batches of data before they are fed to networks. It's often useful to have data processing outside of the Dataset object as it can be done in parallel instead of on individual samples.
-
-All training is handled through `utils.trainer`, which assembles all of the specified components and calls `Algorithm.train`. Components are specified via config yaml files that are parsed before training. The config parser supports importing arbitrary python objects by specifying a list of strings starting with the "import" keyword, for example `activation: ["import", "torch.nn", "ReLU"]`.
-
-Examples of how each of these different systems can be used can be found in the `vision` and `rl` branches that contain default implementations. The recommend steps for implementing your own method are as follows:
-
-1. Implement the environment, which will determine the input/output spaces in `envs`. If its a gym environment, you can register it.
-2. Implement the dataset that is built on top of the environnment.
-3. Implement any processors your might have.
-4. Implement the network
-5. Implement the algorithm by extending the base class, filling out the `_train_step` method (and optionally others).
-6. Create a config, see `configs/example.yaml` for an idea of how it works.
-
-### Launching jobs
-To train a model, simply run `python scripts/train.py --config path/to/config --path path/to/save/folder`
-
-Results can be viewed on tensorboard.
-
-The `tools` folder contains simple tools for launching job sweeps locally or on a SLURM cluster. The tools work for every script, but have special features for `scripts/train.py`.
-
-To launch any job via a script in the `tools` folder, use the `--entry-point <path to script>` argument to specify the path to the target script (`scripts/train.py`) by default and the `--arguments <arg1>=<value1>  <arg2>=<value2> ..  <argk>=<valuek>` to specify the arguments for the script. Multiple different jobs can be stacked. For example, `--arguments` can be provided more than once to specify different sets of arguments. The `--seeds-per-job` argument lets you run multiple seeds for a given entry-point, but the entry-point script will need to accept a `--seed` argument.
-
-#### Local Jobs
-Launching jobs locally can easily be done by specifying `--cpus` in the same manner you would for `taskset` and `--gpus` via nvidia devices. Note that multi-gpu training is not yet supported. The script will automatically balance jobs on the provided hardware. Here is an example:
+You should be able to activate the development enviornment by running `. path/to/setup_shell.sh`. Experiments can be run one at a time with the following command:
 ```
-python tools/run_local.py scripts/my_custom_script.py --cpus 0-8 --gpus 0 1 --seeds-per-job 2 --arguments <arg1>=<value1>  <arg2>=<value2>
+python scripts/train.py --config path/to/config --path path/to/storage/directory
 ```
-This will run one job on cores 0-3 with GPU 0 and one job on cpus 4-7 with GPU 1.
 
-#### SLURM
-Launching jobs on SLURM is done via the `tools/run_slurm.py` script. In addition to the base arguments for job launching, the slurm script takes several additional arguments for slurm. Here is an example command that includes all of the required arguments and launches training jobs from `scripts/train.py`. Additional optional arguments can be found in the `tools/run_slurm.py` file.
+This repository also supports running multiple jobs via a launcher. This makes use of the `.json` files that can be found in some of the config directories. This can be done for slurm by:
 ```
-python tools/run_slurm.py --partition <partition> --cpus 8 --gpus 1080ti:1 --mem 16G --job-name example --arguments config=configs/example.yaml path=../output/test
+python tools/run_slurm.py --slurm-arg-1 <slurm_arg_1> .. --slurm-arg-n <slurm_arg_n> --arguments config=path/to/config path=path/to/storage/directory
 ```
-The `gpu` argument takes in the GRES specification of the GPU resource. One unfortunate problem with GRES it doesn't allow sharing GPUs between slurm jobs. This often means that if you want to run a small model that only consumes, say 25% of the GPUs max FLOPS, everyone else on the cluster will still be blocked from using the GPU. The `--jobs-per-instance` argument allows you to train multiple models on the same SLURM node in parallel on the same GPU! You just need to make sure to specify enough CPU and memory resources to run both at once. Doing so drastically saves GPU resources on the cluster if you are running parameter sweeps.
+Or using a local sweeper via
+```
+python tools/run_slurm.py --sweeper-arg-1 <sweeper_arg_1> .. --sweeper-arg-n <sweeper_arg_n> --arguments config=path/to/config path=path/to/storage/directory
+```
+For more details on this, see the [research-lightning repository](https://github.com/jhejna/research-lightning)
 
-#### Using the Sweeper
-The default training script `scripts/train.py` also supports parameter sweeps. Parameter sweeps are specified using `json` files. Any of the scripts in `tools` will automatically detect that a sweep is being run based on the `entry-point` and type of config file (json) being specified. An example sweep file is found on the `vision` branch. Keys in the json file are specified via strings, with periods to separate nested structions, and values are provided as lists. For example to specify a learning rate sweep, one would add `"optim_kwargs.lr" : [0.01, 0.001]`.
-
-There are two special keys. The first `"base"` is required and specifies the path to the base config that will be modified by the sweep file. The second, `"paired_keys"` allows you to pair the values of differnet parameters in the sweep.
-
-## RL
-
-This repository contains high quality implementaitons of reinforcement learning algorithms in the `rl` branch. Here are some of the features currently supported:
-
-* ReplayBuffer class that elegantly handles both parallel and serial Dataloading as well as Dict observation and action spaces. From my benchmarking this is one of the fastest implementations I know. It borrows heavily from [DrQv2](https://github.com/facebookresearch/drqv2), but can sample entire batches of data at once to avoid serial collation. For TD3 this lead to around a 15% speed increase.
-* Gym wrappers for `dm_control`, matching those in [DrQv2](https://github.com/facebookresearch/drqv2) and [pytorch_sac](https://github.com/denisyarats/pytorch_sac).
-* High quality TD3 implementation
-* SAC implementation, borrowing closely from [pytorch_sac](https://github.com/denisyarats/pytorch_sac)
-
-### Benchmarks
-All benchmarks of RL algorithms were run using GTX 1080 Ti GPUs, eight CPU cores, and 16GB of memory. Hyperparameters for SAC were taken from [pytorch_sac](https://github.com/denisyarats/pytorch_sac) and hyperparameters for TD3 were left as the default as listed in [the paper](https://arxiv.org/pdf/1802.09477.pdf) except with 256 dimensional Dense layers in the actor and critic. Evaluations were run on the DM Control Cheetah Run benchmark.
-
-There is still room for improvement, but the current implementations are faster and match or exceed the performance of many popular codebases.
-
-<p align="center">
-  <img width="47%" src="https://jhejna.github.io/host/research-lightning/sac.png">
-  <img width="47%" src="https://jhejna.github.io/host/research-lightning/td3.png">
-</p>
-
-| SAC          | SB3 | pytorch\_sac | Ours |
-| ------------ | --- | ------------ | ---- |
-| Steps/Second | 60  | 50           | 76   |
-
-| TD3          | SB3 | Ours (DRQ-v2 Style Buffer) | Ours |
-| ------------ | --- | -------------------------- | ---- |
-| Steps/Second | 131 | 116                        | 134  |
-
-The performance improvement from the replay buffer will be more drastic when running vision based algorithms.
-
-## Vision
-This section contains a list of features that are included in the `vision` branch of the repo.
-
-* Generic Image Classification
-* Wrapper to use arbitrary torchvision datasets
-
-## License
+## Attribution
 This framework has an MIT license as found in the [LICENSE](LICENSE) file.
 
-If you use this package, please cite this repository. Here is the associated Bibtex:
+If you use this package, please cite our paper. Here is the associated Bibtex:
 ```
-@misc{hejna2021research,
-    title={Research Lightning: A lightweight package for Deep Learning Research},
-    author={Donald J Hejna III},
-    year={2021},
-    publisher={GitHub},
-    journal={GitHub Repository},
-    howpublished = {\url{https://github.com/jhejna/research-lightning}}
-}
+TODO
 ```

@@ -6,10 +6,10 @@ import torch
 
 from research.networks.gofar import GoFarNetwork
 
-from .base import Algorithm
+from .off_policy_algorithm import OffPolicyAlgorithm
 
 
-class GoFar(Algorithm):
+class GoFar(OffPolicyAlgorithm):
     def __init__(
         self,
         *args,
@@ -140,7 +140,7 @@ class GoFar(Algorithm):
         self.optim["actor"].step()
 
         # Apply the soft weight update to the value function
-        if self.steps % self.target_freq == 0:
+        if step % self.target_freq == 0:
             with torch.no_grad():
                 # Update encoder and value parameters.
                 for param, target_param in zip(

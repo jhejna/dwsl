@@ -1,4 +1,4 @@
-name: research
+name: dwsl
 channels:
   - pytorch-nightly
   - default

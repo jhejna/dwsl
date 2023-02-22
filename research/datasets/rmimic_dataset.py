@@ -13,7 +13,7 @@ from .replay_buffer import HindsightReplayBuffer
 
 class GoalConditionedRobomimicDataset(HindsightReplayBuffer):
     """
-    Simple Class that writes the data from the RoboMimicDatasets into a HindsightReplayBuffer
+    Simple Class that writes the data from the GoalConditionedRobomimicDatasets into a HindsightReplayBuffer
     """
 
     def __init__(self, *args, robomimic_path=None, **kwargs):

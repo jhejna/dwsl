@@ -1,0 +1,19 @@
+{
+    "base": ["configs/robomimic/gcsl.yaml", "configs/robomimic/wgcsl.yaml", "configs/robomimic/gofar.yaml", "configs/robomimic/iql.yaml"],
+    "paired_keys": [
+        ["eval_env_kwargs.dataset_path", "dataset_kwargs.path"]
+    ],
+    "eval_env_kwargs.dataset_path": [
+        "can/ph/low_dim.hdf5",
+        "can/mh/low_dim.hdf5",
+        "square/ph/low_dim.hdf5",
+        "square/mh/low_dim.hdf5"
+    ],
+    "dataset_kwargs.path": [
+        "can/ph/low_dim.hdf5",
+        "can/mh/low_dim.hdf5",
+        "square/ph/low_dim.hdf5",
+        "square/mh/low_dim.hdf5"
+    ],
+    "trainer_kwargs.seed": [0, 1, 2, 3]
+}
