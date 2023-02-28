@@ -84,14 +84,18 @@ class GoalConditionedAntDataset(HindsightReplayBuffer):
                     ag_.append(dataset["observations"][i, :2].astype(np.float32))
                     g_.append(dataset["infos/goal"][i].astype(np.float32))
 
-                dict_obs = {"observation": np.array(obs_), "achieved_goal": np.array(ag_), "desired_goal": np.array(g_)}
+                dict_obs = {
+                    "observation": np.array(obs_),
+                    self.achieved_key: np.array(ag_),
+                    self.goal_key: np.array(g_),
+                }
                 action_ = np.array(action_)
                 if self.action_eps > 0.0:
                     action_ = np.clip(action_, -1.0 + self.action_eps, 1.0 - self.action_eps)
                 reward_ = np.array(reward_)
                 discount_ = np.array(discount_)
                 done_ = np.array(done_, dtype=np.bool_)
-                dist = np.linalg.norm(dict_obs["desired_goal"] - dict_obs["achieved_goal"], axis=-1)
+                dist = np.linalg.norm(dict_obs[self.goal_key] - dict_obs[self.achieved_key], axis=-1)
                 kwargs = dict(goal_distance=dist)
                 # Compute the ground truth horizon metrics
                 if self.terminal_threshold is not None:

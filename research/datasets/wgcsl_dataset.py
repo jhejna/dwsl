@@ -72,15 +72,15 @@ class WGCSLDataset(HindsightReplayBuffer):
                     obs["observation"] = data["o"][i].copy()
                 if "g" in data:
                     goal = data["g"][i]
-                    obs["desired_goal"] = np.concatenate((goal[:1], goal), axis=0)
+                    obs[self.goal_key] = np.concatenate((goal[:1], goal), axis=0)
                 obs = remove_float64(obs)
                 dummy_action = np.expand_dims(self.dummy_action, axis=0)
                 action = np.concatenate((dummy_action, data["u"][i]), axis=0)
                 action = remove_float64(action)
 
                 kwargs = dict()
-                if obs["achieved_goal"].dtype == np.float32 and "desired_goal" in obs:
-                    kwargs["goal_distance"] = np.linalg.norm(obs["desired_goal"] - obs["achieved_goal"], axis=-1)
+                if obs[self.achieved_key].dtype == np.float32 and self.goal_key in obs:
+                    kwargs["goal_distance"] = np.linalg.norm(obs[self.goal_key] - obs[self.achieved_key], axis=-1)
 
                 # If we have a terminal threshold compute and store the horizon
                 if self.terminal_threshold is not None and "goal_distance" in kwargs:
@@ -104,7 +104,7 @@ class WGCSLDataset(HindsightReplayBuffer):
                 reward = np.zeros(action.shape[0])  # Gets recomputed with HER
                 done = np.zeros(action.shape[0], dtype=np.bool_)
                 done[-1] = True  # Add the episode delineation
-                assert len(obs["achieved_goal"]) == len(action) == len(reward) == len(done) == len(discount)
+                assert len(obs[self.achieved_key]) == len(action) == len(reward) == len(done) == len(discount)
                 yield (obs, action, reward, done, discount, kwargs)
             # Explicitly delete the data objects to save memory
             del data

@@ -84,7 +84,7 @@ class GoalConditionedRobomimicDataset(HindsightReplayBuffer):
                 ],
                 axis=1,
             )
-            obs["achieved_goal"] = np.concatenate((achieved_goal, final_achieved_goal), axis=0)  # Concat on time axis
+            obs[self.achieved_key] = np.concatenate((achieved_goal, final_achieved_goal), axis=0)  # Concat on time axis
             obs = remove_float64(obs)
 
             dummy_action = np.expand_dims(self.dummy_action, axis=0)
@@ -97,7 +97,7 @@ class GoalConditionedRobomimicDataset(HindsightReplayBuffer):
             done = np.zeros(action.shape[0], dtype=np.bool_)  # Gets recomputed with HER
             done[-1] = True
             discount = np.ones(action.shape[0])  # Gets recomputed with HER
-            assert len(obs["achieved_goal"]) == len(action) == len(reward) == len(done) == len(discount)
+            assert len(obs[self.achieved_key]) == len(action) == len(reward) == len(done) == len(discount)
             kwargs = dict()
             yield (obs, action, reward, done, discount, kwargs)
 

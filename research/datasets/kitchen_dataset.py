@@ -46,7 +46,7 @@ class KitchenDataset(HindsightReplayBuffer):
             if end < 3:
                 continue  # skip this episode
             obs = {
-                "achieved_goal": observations[i, :end, :30],
+                self.achieved_key: observations[i, :end, :30],
                 # Do not bother allocating the desired goal, use all relabeling.
             }
             dummy_action = np.expand_dims(self.dummy_action, axis=0)

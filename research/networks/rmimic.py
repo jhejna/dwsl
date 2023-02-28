@@ -17,6 +17,7 @@ class RobomimicEncoder(torch.nn.Module):
         pretrain="supervised",
         num_kp=64,
         freeze_resnet=False,
+        backbone=18,
     ):
         super().__init__()
         assert len(observation_space.shape) == 3
@@ -26,7 +27,7 @@ class RobomimicEncoder(torch.nn.Module):
         )
 
         input_channel = observation_space.shape[0]
-        self.resnet = ResNet18(input_channel=input_channel, pretrain=pretrain)
+        self.resnet = ResNet(input_channel=input_channel, backbone=backbone, pretrain=pretrain)
         resnet_output_shape = self.resnet.output_shape(observation_space.shape)
         self.spatial_softmax = SpatialSoftmax(input_shape=resnet_output_shape, num_kp=num_kp)
         spatial_softmax_output_shape = self.spatial_softmax.output_shape(resnet_output_shape)
@@ -52,15 +53,16 @@ class RobomimicEncoder(torch.nn.Module):
         return gym.spaces.Box(shape=(self.repr_dim,), low=-np.inf, high=np.inf, dtype=np.float32)
 
 
-class ResNet18(torch.nn.Module):
+class ResNet(torch.nn.Module):
     """
-    A ResNet18 block that can be used to process input images.
+    A ResNet block that can be used to process input images.
     """
 
     def __init__(
         self,
-        input_channel=3,
-        pretrain="supervised",
+        input_channel: int = 3,
+        backbone: int = 18,
+        pretrain: str = "supervised",
     ):
         """
         Args:
@@ -71,8 +73,13 @@ class ResNet18(torch.nn.Module):
             input_coord_conv (bool): if True, use a coordinate convolution for the first layer
                 (a convolution where input channels are modified to encode spatial pixel location)
         """
-        super(ResNet18, self).__init__()
-        net = vision_models.resnet18(pretrained=pretrain == "supervised")
+        super().__init__()
+        model_cls, weights = {
+            18: (vision_models.resnet18, vision_models.ResNet18_Weights.DEFAULT),
+            34: (vision_models.resnet34, vision_models.ResNet34_Weights.DEFAULT),
+            50: (vision_models.resnet50, vision_models.ResNet50_Weights.DEFAULT),
+        }[backbone]
+        net = model_cls(weights=weights)
 
         if input_channel != 3:
             net.conv1 = nn.Conv2d(input_channel, 64, kernel_size=7, stride=2, padding=3, bias=False)

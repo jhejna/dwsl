@@ -13,7 +13,7 @@ optim_kwargs:
 
 network: ActorValuePolicy
 network_kwargs:
-  ncoder_class: RobomimicEncoder
+  encoder_class: RobomimicEncoder
   encoder_kwargs:
     pretrain: supervised
     num_kp: 64
@@ -47,7 +47,7 @@ processor: ComposeProcessor
 processor_kwargs:
   processors: # Format is List[Tuple(Name, kwargs)]
    -
-    - RandomShiftsAug
+    - RandomCrop
     -
    -
     - ConcatenateProcessor

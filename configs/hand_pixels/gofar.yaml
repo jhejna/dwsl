@@ -1,17 +1,15 @@
-alg: DWSL_B
+alg: GoFar
 alg_kwargs:
   tau: 0.05
   target_freq: 20
-  alpha: 1.0
-  beta: 0.05
-  clip_score: 10
+  discriminator_lambda: 0.01
   encoder_gradients: actor
 
 optim: Adam
 optim_kwargs:
   lr: 0.0003
 
-network: ActorValuePolicy
+network: GoFarNetwork
 network_kwargs:
   encoder_class: DrQv2Encoder
   actor_class: DrQv2Actor
@@ -19,38 +17,34 @@ network_kwargs:
     feature_dim: 50
     output_act: ["import", "torch.nn", "Tanh"]
     hidden_layers: [1024, 1024]
-  value_class: DiscreteDrQv2Distance
+  value_class: DrQv2Value
   value_kwargs:
     feature_dim: 50
     hidden_layers: [1024, 1024]
     ensemble_size: 1
-    bins: 50
+  discriminator_class: DrQv2Discriminator
+  discriminator_kwargs:
+    feature_dim: 50
+    hidden_layers: [1024, 1024]
 
 # No train env, only eval env
-eval_env: FetchPick-v2
+eval_env: HandReachImage-v0
 eval_env_kwargs:
-  width: 64
-  height: 64
-wrapper: FetchImageWrapper
+  goal_path: path/to/image/dataset/goals_200.pkl
 
-dataset: HindsightReplayBuffer
+
+dataset: WGCSLDataset
 dataset_kwargs:
-  path: ../datasets/test/pick_image
-  discount: 1.0
+  paths: [paths/to/expert/dataset, path/to/random/dataset]
+  percents: [depends-on-experiment]
+  discount: 0.98
   reward_fn: ["import", "research.envs.gym_robotics", "fetch_dummy"]
   batch_size: 256
   relabel_fraction: 1.0
+  init_obs: True
 
 
-processor: ComposeProcessor
-processor_kwargs:
-  processors: # Format is List[Tuple(Name, kwargs)]
-   -
-    - RandomCrop
-    -
-   -
-    - ConcatenateProcessor
-    - obs_dim: 0
+processor: RandomCrop
 
 schedule: null # A learning rate schedule
 checkpoint: null # A checkpoint to initialize the model from

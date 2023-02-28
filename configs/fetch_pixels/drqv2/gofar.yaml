@@ -44,7 +44,7 @@ dataset_kwargs:
   init_obs: True
 
 
-processor: RandomShiftsAug
+processor: RandomCrop
 
 schedule: null # A learning rate schedule
 checkpoint: null # A checkpoint to initialize the model from

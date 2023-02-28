@@ -46,7 +46,7 @@ processor: ComposeProcessor
 processor_kwargs:
   processors: # Format is List[Tuple(Name, kwargs)]
    -
-    - RandomShiftsAug
+    - RandomCrop
     -
    -
     - ConcatenateProcessor
@@ -70,3 +70,4 @@ trainer_kwargs: # Arguments given to Algorithm.train
   profile_freq: 500
   benchmark: True
   seed: null
+  torch_compile: True

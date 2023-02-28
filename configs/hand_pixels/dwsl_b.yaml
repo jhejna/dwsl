@@ -27,15 +27,15 @@ network_kwargs:
     bins: 50
 
 # No train env, only eval env
-eval_env: FetchPick-v2
+eval_env: HandReachImage-v0
 eval_env_kwargs:
-  width: 64
-  height: 64
-wrapper: FetchImageWrapper
+  goal_path: path/to/image/dataset/goals_200.pkl
 
-dataset: HindsightReplayBuffer
+
+dataset: WGCSLDataset
 dataset_kwargs:
-  path: ../datasets/test/pick_image
+  paths: [paths/to/expert/dataset, path/to/random/dataset]
+  percents: [depends-on-experiment]
   discount: 1.0
   reward_fn: ["import", "research.envs.gym_robotics", "fetch_dummy"]
   batch_size: 256

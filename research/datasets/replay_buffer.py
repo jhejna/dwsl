@@ -384,7 +384,6 @@ class ReplayBuffer(torch.utils.data.IterableDataset):
         # Can add in batches or serially.
         if isinstance(reward, list) or isinstance(reward, np.ndarray):
             num_to_add = len(reward)
-            assert num_to_add > 1, "If inputting lists or arrays should have more than one timestep"
         else:
             num_to_add = 1
 
@@ -629,7 +628,8 @@ class HindsightReplayBuffer(ReplayBuffer):
 
     def __init__(
         self,
-        *args,
+        observation_space: gym.Space,
+        action_space: gym.Space,
         reward_fn: Optional[Callable] = None,
         discount_fn: Optional[Callable] = None,
         goal_key: str = "desired_goal",
@@ -639,9 +639,13 @@ class HindsightReplayBuffer(ReplayBuffer):
         mark_every: int = 100,
         init_obs: bool = False,
         terminal_threshold: Optional[float] = None,
+        alloc_goal: bool = True,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        assert isinstance(observation_space, gym.spaces.Dict), "HER Replay Buffer depends on Dict Spaces."
+        if not alloc_goal:
+            observation_space = gym.spaces.Dict({k: v for k, v in observation_space.items() if k != goal_key})
+        super().__init__(observation_space, action_space, **kwargs)
         self.reward_fn = reward_fn
         self.discount_fn = discount_fn
         self.goal_key = goal_key
@@ -651,7 +655,6 @@ class HindsightReplayBuffer(ReplayBuffer):
         self.mark_every = mark_every
         self.init_obs = init_obs
         self.terminal_threshold = terminal_threshold
-        assert isinstance(self.observation_space, gym.spaces.Dict), "HER Replay Buffer depends on Dict Spaces."
 
     def _extract_markers(self):
         # Write done at the idx position and the end of the buffer.
@@ -668,6 +671,7 @@ class HindsightReplayBuffer(ReplayBuffer):
 
     def _alloc(self):
         self._last_extract_size = 0
+        # Modify the observation space so we don't need to allocate a buffer for the goal
         super()._alloc()
         self._extract_markers()  # After we have allocated the dataset, extract markers
         self._last_extract_size = self._size

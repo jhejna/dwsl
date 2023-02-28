@@ -33,7 +33,7 @@ processor: ComposeProcessor
 processor_kwargs:
   processors: # Format is List[Tuple(Name, kwargs)]
    -
-    - RandomShiftsAug
+    - RandomCrop
     -
    -
     - ConcatenateProcessor

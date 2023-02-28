@@ -2,4 +2,4 @@
 from .base import ComposeProcessor
 from .concatenate import ConcatenateProcessor, SelectProcessor
 from .normalization import RunningObservationNormalizer
-from .image_augmentation import RandomShiftsAug
+from .image_augmentation import RandomCrop
