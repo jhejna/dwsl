@@ -58,4 +58,4 @@ trainer_kwargs: # Arguments given to trainer
     batch_size: null
     collate_fn: null
   profile_freq: 500
-  seed: null
+seed: null

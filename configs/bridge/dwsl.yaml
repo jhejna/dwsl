@@ -3,7 +3,7 @@ alg_kwargs:
   alpha: 1.0
   beta: 0.05
   clip_score: 10
-  encoder_gradients: actor
+  encoder_gradients: both
 
 optim: Adam
 optim_kwargs:
@@ -40,6 +40,10 @@ dataset_kwargs:
   capacity: 800000
   fetch_every: 50
   alloc_goal: False
+validation_dataset_kwargs:
+  capacity: 20000
+  fetch_every: 4
+  train: False
 
 processor: ComposeProcessor
 processor_kwargs:
@@ -59,14 +63,18 @@ checkpoint: null # A checkpoint to initialize the model from
 
 trainer_kwargs: # Arguments given to Algorithm.train
   total_steps: 4000000
-  log_freq: 100 # How often to log values
-  eval_freq: 10000 # How often to run evals
+  log_freq: 500 # How often to log values
+  eval_freq: 5000 # How often to run evals
   eval_fn: null
   loss_metric: actor_loss
+  max_validation_steps: 100
   train_dataloader_kwargs:
     num_workers: 4 # Number of dataloader workers.
     batch_size: null
     collate_fn: null
+  validation_dataloader_kwargs:
+    num_workers: 2
   profile_freq: 500
   benchmark: True
-  seed: null
+
+seed: null

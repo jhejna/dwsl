@@ -139,3 +139,59 @@ class WGCSL(OffPolicyAlgorithm):
         with torch.no_grad():
             action = self.predict(batch, is_batched=False, sample=True)
         return action
+
+    def validation_step(self, batch: Dict) -> Dict:
+        """
+        perform a validation step. Should return a dict of loggable values.
+        TODO: refactor method to re-use this computation
+        """
+        with torch.no_grad():
+            batch["obs"] = self.network.encoder(batch["obs"])
+            batch["next_obs"] = self.network.encoder(batch["next_obs"])
+
+            # First compute critic loss
+            next_actions = self.target_network.actor(batch["next_obs"])
+            next_q = self.target_network.critic(batch["next_obs"], next_actions).min(dim=0)[0]
+            if self.sparse_reward:
+                reward = -(batch["horizon"] != 1).float()
+            else:
+                reward = batch["reward"]
+            target_q = reward + batch["discount"] * next_q
+            qs = self.network.critic(
+                batch["obs"].detach() if self.encoder_gradients == "actor" else batch["obs"], batch["action"]
+            )
+            q_loss = (
+                torch.nn.functional.mse_loss(qs, target_q.expand(qs.shape[0], -1), reduction="none").mean(dim=-1).sum()
+            )
+
+            # Compute the policy action
+            dist = self.network.actor(batch["obs"].detach() if self.encoder_gradients == "critic" else batch["obs"])
+            if isinstance(dist, torch.distributions.Distribution):
+                action = dist.sample()
+                bc_loss = -dist.log_prob(batch["action"]).sum(dim=-1)
+            elif torch.is_tensor(dist):
+                assert dist.shape == batch["action"].shape
+                action = dist
+                bc_loss = torch.nn.functional.mse_loss(action, batch["action"], reduction="none").sum(dim=-1)
+            else:
+                raise ValueError("Invalid policy output provided")
+
+            # Compute the discount relabeling weight (DRW)
+            drw = torch.pow(batch["discount"], batch["horizon"]) if self.drw else torch.ones_like(batch["discount"])
+
+            # Compute the advantage weighting
+            with torch.no_grad():
+                v = self.network.critic(batch["obs"], action).min(dim=0)[0]
+                adv = target_q - v
+                exp_adv = torch.exp(adv / self.beta)
+                if self.clip_score is not None:
+                    exp_adv = torch.clamp(exp_adv, max=self.clip_score)
+
+            actor_loss = (drw * exp_adv * bc_loss).mean()
+
+        return dict(
+            q_loss=q_loss.item(),
+            actor_loss=actor_loss.item(),
+            q=qs.mean().item(),
+            advantage=adv.mean().item(),
+        )

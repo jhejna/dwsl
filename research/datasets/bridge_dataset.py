@@ -93,6 +93,7 @@ class BridgeDataset(HindsightReplayBuffer):
 
                 reward = np.zeros(action.shape[0], dtype=np.float32)
                 done = np.zeros(action.shape[0], dtype=np.bool_)
+                done[-1] = True  # Make sure to set the last part to done.
                 discount = np.ones(action.shape[0], dtype=np.float32)
                 kwargs = {}
 

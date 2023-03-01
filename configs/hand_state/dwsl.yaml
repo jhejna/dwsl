@@ -69,4 +69,4 @@ trainer_kwargs: # Arguments given to Algorithm.train
     batch_size: null
     collate_fn: null
   profile_freq: 500
-  seed: null
+seed: null

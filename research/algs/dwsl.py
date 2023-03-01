@@ -81,10 +81,9 @@ class DWSL(OffPolicyAlgorithm):
             # But, we are using costs. Thus the advantage is V(s) - Q(s,a) = V(s) - c(s,a) - V(s')
 
             # First compute the cost tensor. This is zero unless the horizon is in nstep
-            cost = torch.logical_or(batch["horizon"] >= self.nstep, batch["horizon"] < 0)
-            cost = cost.float() / self.bins  # Cost is zero if we reach on the next state within nstep
+            cost = torch.logical_or(batch["horizon"] >= self.nstep, batch["horizon"] < 0).float() / self.bins
             distance = self._get_distance(logits)
-            next_distance = self._get_distance(self.network.value(batch["next_obs"]))
+            next_distance = self._get_distance(self.network.value(batch["next_obs"].detach()))
             adv = distance - cost - batch["discount"] * next_distance
             exp_adv = torch.exp(adv / self.beta)
             if self.clip_score is not None:
@@ -133,3 +132,52 @@ class DWSL(OffPolicyAlgorithm):
         with torch.no_grad():
             action = self.predict(batch, is_batched=False, sample=True)
         return action
+
+    def validation_step(self, batch: Dict) -> Dict:
+        """
+        perform a validation step. Should return a dict of loggable values.
+        TODO: refactor method to re-use this computation
+        """
+        with torch.no_grad():
+            batch["obs"] = self.network.encoder(batch["obs"])
+            batch["next_obs"] = self.network.encoder(batch["next_obs"])
+
+            empirical_targets = (batch["horizon"] - 1) // self.nstep
+            empirical_targets[empirical_targets < 0] = self.bins - 1  # Set to max bin value (= horizon by default)
+            empirical_targets[empirical_targets >= self.bins] = self.bins - 1
+            # Now one-hot the empirical distribution
+            target_distribution = torch.nn.functional.one_hot(empirical_targets, num_classes=self.bins)
+            target_distribution = target_distribution.unsqueeze(0)  # (1, B, D)
+
+            # Now train the distance function with NLL loss
+            logits = self.network.value(batch["obs"].detach() if self.encoder_gradients == "actor" else batch["obs"])
+            log_probs = torch.nn.functional.log_softmax(logits, dim=-1)
+            v_loss = (-target_distribution * log_probs).sum(dim=-1).mean()  # Sum over D dim, avg over B and E
+
+            # First compute the cost tensor. This is zero unless the horizon is in nstep
+            cost = torch.logical_or(batch["horizon"] >= self.nstep, batch["horizon"] < 0).float() / self.bins
+            cost = cost.float() / self.bins  # Cost is zero if we reach on the next state within nstep
+            distance = self._get_distance(logits)
+            next_distance = self._get_distance(self.network.value(batch["next_obs"].detach()))
+            adv = distance - cost - batch["discount"] * next_distance
+            exp_adv = torch.exp(adv / self.beta)
+            if self.clip_score is not None:
+                exp_adv = torch.clamp(exp_adv, max=self.clip_score)
+
+            dist = self.network.actor(batch["obs"].detach() if self.encoder_gradients == "value" else batch["obs"])
+            if isinstance(dist, torch.distributions.Distribution):
+                bc_loss = -dist.log_prob(batch["action"]).sum(dim=-1)
+            elif torch.is_tensor(dist):
+                assert dist.shape == batch["action"].shape
+                bc_loss = torch.nn.functional.mse_loss(dist, batch["action"], reduction="none").sum(dim=-1)
+            else:
+                raise ValueError("Invalid policy output provided")
+            assert exp_adv.shape == bc_loss.shape
+            actor_loss = (exp_adv * bc_loss).mean()
+
+        return dict(
+            v_loss=v_loss.item(),
+            actor_loss=actor_loss.item(),
+            distance=distance.mean().item(),
+            advantage=adv.mean().item(),
+        )

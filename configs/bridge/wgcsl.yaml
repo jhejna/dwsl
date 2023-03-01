@@ -1,10 +1,18 @@
-alg: BehaviorCloning
+alg: WGCSL
+alg_kwargs:
+  tau: 0.05
+  target_freq: 20
+  beta: 1
+  clip_score: 10
+  drw: True
+  sparse_reward: True
+  encoder_gradients: actor
 
 optim: Adam
 optim_kwargs:
   lr: 0.0003
 
-network: ActorPolicy
+network: ActorCriticPolicy
 network_kwargs:
   encoder_class: RobomimicEncoder
   encoder_kwargs:
@@ -15,6 +23,10 @@ network_kwargs:
   actor_kwargs:
     output_act: ["import", "torch.nn", "Tanh"]
     hidden_layers: [1024, 1024]
+  critic_class: ContinuousMLPCritic
+  critic_kwargs:
+    hidden_layers: [1024, 1024]
+    ensemble_size: 1
 
 # No train env, only eval env
 eval_env: GoalConditionedWidowXEnv
@@ -22,10 +34,10 @@ eval_env: GoalConditionedWidowXEnv
 dataset: BridgeDataset
 dataset_kwargs:
   path: /iliad/group/datasets/bridge_data/numpy_fixed
-  discount: 1.0
+  discount: 0.99
   reward_fn: ["import", "research.envs.gym_robotics", "fetch_dummy"]
   batch_size: 256
-  relabel_fraction: 1.0
+  relabel_fraction: 0.99
   train: True
   capacity: 800000
   fetch_every: 50

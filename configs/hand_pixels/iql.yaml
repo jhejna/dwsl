@@ -74,4 +74,4 @@ trainer_kwargs: # Arguments given to Algorithm.train
     collate_fn: null
   profile_freq: 500
   benchmark: True
-  seed: null
+seed: null

@@ -15,5 +15,5 @@
         "square/ph/low_dim.hdf5",
         "square/mh/low_dim.hdf5"
     ],
-    "trainer_kwargs.seed": [0, 1, 2, 3]
+    "seed": [0, 1, 2, 3]
 }

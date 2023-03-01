@@ -17,5 +17,5 @@
     ],
     "dataset_kwargs.nstep": [2, 2, 2, 2],
     "network_kwargs.value_kwargs.bins": [80, 160, 80, 160],
-    "trainer_kwargs.seed": [0, 1, 2, 3]
+    "seed": [0, 1, 2, 3]
 }
