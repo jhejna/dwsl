@@ -220,6 +220,9 @@ def np_bytes_per_instance(space: gym.Space) -> int:
 
 
 def _flatten_dict_helper(flat_dict: Dict, value: Any, prefix: str, separator: str = ".") -> None:
+    if isinstance(value, gym.spaces.Dict):
+        # If we have a dict space, then set the value to be the spaces themselves
+        value = value.spaces
     if isinstance(value, dict):
         for k in value.keys():
             assert isinstance(k, str), "Can only flatten dicts with str keys"

@@ -4,6 +4,8 @@ import gym
 import numpy as np
 import torch
 
+from research.utils.utils import flatten_dict, nest_dict
+
 from .base import Processor
 
 
@@ -101,4 +103,30 @@ class SelectProcessor(Processor):
         for k in ("obs", "next_obs", "init_obs"):
             if k in batch and self.obs_keys is not None:
                 batch[k] = {obs_key: batch[k][obs_key] for obs_key in self.obs_keys}
+        return batch
+
+
+class FlattenDict(Processor):
+    def __init__(
+        self,
+        observation_space: gym.Space,
+        action_space: gym.Space,
+    ):
+        super().__init__(observation_space, action_space)
+
+    @property
+    def observation_space(self):
+        # Return the space of the last processor
+        spaces = flatten_dict(self._observation_space.spaces)
+        return gym.spaces.Dict(spaces)
+
+    def forward(self, batch: Dict) -> Dict:
+        for k in ("obs", "next_obs", "init_obs"):
+            if k in batch:
+                batch[k] = flatten_dict(batch[k])
+        return batch
+
+    def unprocess(self, batch: Dict) -> Dict:
+        for k in ("obs", "next_obs", "init_obs"):
+            batch[k] = nest_dict(batch[k])
         return batch

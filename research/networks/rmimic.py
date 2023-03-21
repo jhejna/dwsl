@@ -228,3 +228,96 @@ class SpatialSoftmax(torch.nn.Module):
             feature_keypoints = (feature_keypoints, feature_covar)
 
         return feature_keypoints
+
+
+class BridgeDataEncoder(nn.Module):
+    def __init__(
+        self,
+        observation_space: gym.Space,
+        action_space: gym.Space,
+        pretrain="supervised",
+        num_kp=128,
+        freeze_resnet=False,
+        backbone=34,
+        stack=1,
+        use_state_goal=True,
+        encode_separately=False,
+    ):
+        super().__init__()
+        assert len(observation_space["achieved_goal.images0"].shape) == 3
+        self.use_state_goal = use_state_goal
+        self.encode_separately = encode_separately
+        image_multiplier = stack + 1
+        state_multiplier = stack + int(use_state_goal)
+
+        input_channels = observation_space["achieved_goal.images0"].shape[0]
+        mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
+        if not self.encode_separately:
+            input_channels *= image_multiplier
+            mean = image_multiplier * mean
+            std = image_multiplier * std
+
+        self.normlayer = transforms.Normalize(mean=mean, std=std)
+
+        self.resnet = ResNet(input_channel=input_channels, backbone=backbone, pretrain=pretrain)
+        resnet_output_shape = self.resnet.output_shape(observation_space["achieved_goal.images0"].shape)
+        self.spatial_softmax = SpatialSoftmax(input_shape=resnet_output_shape, num_kp=num_kp)
+        spatial_softmax_output_shape = self.spatial_softmax.output_shape(resnet_output_shape)
+
+        self.repr_dim = np.prod(spatial_softmax_output_shape)
+        self.output_repr_dim = self.repr_dim
+        if self.encode_separately:
+            self.output_repr_dim *= image_multiplier
+        self.flatten = nn.Flatten()
+
+        if freeze_resnet:
+            self.resnet.requires_grad_(False)
+            if input_channels != 3:
+                conv1 = self.resnet.nets[0]
+                conv1.requires_grad_(True)  # since this is not pretrained
+
+        self.state_dim = state_multiplier * observation_space["achieved_goal.state"].shape[0]
+
+    def forward(self, obs):
+        # Ok this is super verbose and we should pare it down once we know which approach works the best
+        is_sequence = len(obs["achieved_goal.images0"].shape) == 5
+
+        if self.encode_separately and is_sequence:
+            imgs = torch.cat((obs["achieved_goal.images0"], obs["desired_goal.images0"]), dim=1)
+            b, s, c, h, w = imgs.shape
+            imgs = imgs.view(b * s, c, h, w)  # Move everytihng to batch dim
+        elif self.encode_separately and not is_sequence:
+            imgs = torch.stack((obs["achieved_goal.images0"], obs["desired_goal.images0"]), dim=1)
+            b, s, c, h, w = imgs.shape
+            imgs = imgs.view(b * s, c, h, w)  # Move everytihng to batch dim
+        elif not self.encode_separately and is_sequence:
+            imgs = torch.cat((obs["achieved_goal.images0"], obs["desired_goal.images0"]), dim=1)
+            b, s, c, h, w = imgs.shape
+            imgs = imgs.view(b, s * c, h, w)  # Move everytihng to batch dim
+        elif not self.encode_separately and not is_sequence:
+            imgs = torch.cat((obs["achieved_goal.images0"], obs["desired_goal.images0"]), dim=1)
+            b = imgs.shape[0]
+        else:
+            raise ValueError("Should not get to this case.")
+
+        imgs = self.normlayer(imgs.float() / 255.0)
+        imgs = self.resnet(imgs)
+        imgs = self.spatial_softmax(imgs)
+        imgs = self.flatten(imgs)
+
+        if self.encode_separately and is_sequence:
+            imgs = imgs.view(b, s * self.repr_dim)  # Move everytihng to batch dim
+        elif self.encode_separately and not is_sequence:
+            imgs = imgs.view(b, 2 * self.repr_dim)
+
+        cat_keys = [imgs, obs["achieved_goal.state"].flatten(1, -1)]
+        if self.use_state_goal:
+            cat_keys.append(obs["desired_goal.state"].flatten(1, -1))
+
+        return torch.cat(cat_keys, dim=1)
+
+    @property
+    def output_space(self):
+        return gym.spaces.Box(
+            shape=(self.output_repr_dim + self.state_dim,), low=-np.inf, high=np.inf, dtype=np.float32
+        )

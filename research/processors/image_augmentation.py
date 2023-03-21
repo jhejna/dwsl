@@ -43,27 +43,19 @@ class RandomCrop(Processor):
         # Get the image keys and sequence lengths
         if isinstance(observation_space, gym.spaces.Box):
             assert is_image_space(observation_space)
-            self.is_sequence = len(observation_space.shape) == 4
             self.in_h, self.in_w = observation_space.shape[-2], observation_space[-1]
             self.image_keys = None
         elif isinstance(observation_space, gym.spaces.Dict):
             image_keys = []
-            sequence = []
             hs, ws = [], []
             for k, v in observation_space.items():
                 if is_image_space(v):
                     image_keys.append(k)
-                    if len(v.shape) == 4:
-                        sequence.append(v.shape[0])  # Append the sequence dim
-                    else:
-                        sequence.append(0)
                     ws.append(v.shape[-1])
                     hs.append(v.shape[-2])
-            assert all(sequence) or (not any(sequence)), "All image keys must be sequence or not"
             assert all([h == hs[0] for h in hs])
             assert all([w == ws[0] for w in ws])
             self.in_h, self.in_w = hs[0], ws[0]
-            self.is_sequence = sequence[0]
             self.image_keys = image_keys
         else:
             raise ValueError("Invalid observation space specified")
@@ -152,27 +144,30 @@ class RandomCrop(Processor):
                 op = self.eval_op
 
         # Images are assumed to be of shape (B, S, C, H, W) or (B, C, H, W) if there is no sequence dimension
+        split_dim = 1 if self.consistent else 0
         images = []
         split = []
         for k in ("obs", "next_obs", "init_obs"):
             if k in batch:
                 if self.image_keys is None:
                     images.append(batch[k])
-                    split.append(batch[k].shape[1])
+                    split.append(batch[k].shape[split_dim])
                 else:
                     images.extend([batch[k][img_key] for img_key in self.image_keys])
-                    split.extend([batch[k][img_key].shape[1] for img_key in self.image_keys])
+                    split.extend([batch[k][img_key].shape[split_dim] for img_key in self.image_keys])
 
         with torch.no_grad():
-            images = torch.cat(images, dim=1 if self.consistent else 0)  # This is either the seq dim or channel dim.
-            if self.is_sequence:
-                n, s, c, h, w = images.size()
+            images = torch.cat(images, dim=split_dim)  # This is either the seq dim or channel dim.
+            size = images.size()
+            is_sequence = len(size) == 5
+            if is_sequence:
+                n, s, c, h, w = size
                 images = images.view(n, s * c, h, w)  # Apply same augmentations across sequence.
             images = op(images.float())  # Apply the same augmentation to each data pt.
-            if self.is_sequence:
-                images = images.view(n, s, c, h, w)
+            if is_sequence:
+                images = images.view(n, s, c, self.out_h, self.out_w)
             # Split according to the dimension 1 splits
-            images = torch.split(images, split, dim=1 if self.consistent else 0)
+            images = torch.split(images, split, dim=split_dim)
 
         # Iterate over everything in the same order and overwrite in the batch
         i = 0

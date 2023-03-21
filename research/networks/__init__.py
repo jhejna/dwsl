@@ -10,5 +10,5 @@ from .mlp import (
     MLPDiscriminator,
 )
 from .drqv2 import DrQv2Encoder, DrQv2Critic, DrQv2Actor, DrQv2Value, DiscreteDrQv2Distance, DrQv2Discriminator
-from .rmimic import RobomimicEncoder
+from .rmimic import RobomimicEncoder, BridgeDataEncoder
 from .gofar import GoFarNetwork

@@ -1,6 +1,7 @@
 # Development files
 propogate_from_main.sh
 demos/
+plots/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

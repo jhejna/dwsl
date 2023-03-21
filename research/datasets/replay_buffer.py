@@ -153,18 +153,19 @@ class ReplayBuffer(torch.utils.data.IterableDataset):
         batch_size: Optional[int] = None,
         sample_multiplier: float = 1.5,  # Should be high enough so we always hit batch_size.
         stack: int = 1,
+        stack_all: bool = True,  # If true stacks all, otherwise just observations
         pad: int = 0,
         next_obs: bool = True,  # Whether or not to load the next obs.
-        stacked_obs: bool = False,  # Whether or not the data provided to the buffer will have stacked obs
-        stacked_action: bool = False,  # Whether or not the data provided to the buffer will have stacked obs
+        obs_space_is_stacked: bool = False,  # Whether or not the data provided to the buffer will have stacked obs
+        action_space_is_stacked: bool = False,  # Whether or not the data provided to the buffer will have stacked obs
     ):
         super().__init__()
         # Check that we don't over add in case of observation stacking
-        self.stacked_obs = stacked_obs
-        self.stacked_action = stacked_action
-        if self.stacked_obs:
+        self.obs_space_is_stacked = obs_space_is_stacked
+        self.action_space_is_stacked = action_space_is_stacked
+        if self.obs_space_is_stacked:
             observation_space = remove_stack_dim(observation_space)
-        if self.stacked_action:
+        if self.action_space_is_stacked:
             action_space = remove_stack_dim(action_space)
 
         self.observation_space = observation_space
@@ -190,6 +191,7 @@ class ReplayBuffer(torch.utils.data.IterableDataset):
         self.discount = discount
         self.nstep = nstep
         self.stack = stack
+        self.stack_all = stack_all
         self.batch_size = 1 if batch_size is None else batch_size
         if pad > 0:
             assert self.stack > 1, "Pad > 0 doesn't make sense if we are not padding."
@@ -337,9 +339,9 @@ class ReplayBuffer(torch.utils.data.IterableDataset):
         is_list = isinstance(reward, list) or isinstance(reward, np.ndarray)
         # Take only the last value if we are using stacking.
         # This prevents saving a bunch of extra data.
-        if not is_list and self.stacked_obs:
+        if not is_list and self.obs_space_is_stacked:
             obs = utils.get_from_batch(obs, -1)
-        if not is_list and action is not None and self.stacked_action:
+        if not is_list and action is not None and self.action_space_is_stacked:
             action = utils.get_from_batch(action, -1)
 
         if action is None:
@@ -602,6 +604,9 @@ class ReplayBuffer(torch.utils.data.IterableDataset):
         obs_idxs = idxs - 1
         next_obs_idxs = idxs + self.nstep - 1
 
+        if stack > 1 and not self.stack_all:
+            idxs = idxs[..., -1]  # Get just the last index.
+
         obs = utils.get_from_batch(self._obs_buffer, obs_idxs)
         action = utils.get_from_batch(self._action_buffer, idxs)
         reward = np.zeros_like(self._reward_buffer[idxs])
@@ -638,6 +643,7 @@ class HindsightReplayBuffer(ReplayBuffer):
         relabel_fraction: float = 0.5,
         mark_every: int = 100,
         init_obs: bool = False,
+        goal_stack: int = 1,
         terminal_threshold: Optional[float] = None,
         alloc_goal: bool = True,
         **kwargs,
@@ -654,6 +660,7 @@ class HindsightReplayBuffer(ReplayBuffer):
         self.relabel_fraction = relabel_fraction
         self.mark_every = mark_every
         self.init_obs = init_obs
+        self.goal_stack = goal_stack
         self.terminal_threshold = terminal_threshold
 
     def _extract_markers(self):
@@ -737,7 +744,6 @@ class HindsightReplayBuffer(ReplayBuffer):
         last_idxs = next_obs_idxs[..., -1] if stack > 1 else next_obs_idxs
 
         obs = utils.get_from_batch(self._obs_buffer, obs_idxs)
-        action = utils.get_from_batch(self._action_buffer, idxs)
         kwargs = utils.get_from_batch(self._kwarg_buffers, next_obs_idxs)
 
         if "horizon" in kwargs:
@@ -745,7 +751,7 @@ class HindsightReplayBuffer(ReplayBuffer):
         else:
             horizon = -100 * np.ones_like(idxs, dtype=np.int)
 
-        her_idxs = np.where(np.random.uniform(size=idxs.shape) < self.relabel_fraction)
+        her_idxs = np.where(np.random.uniform(size=last_idxs.shape) < self.relabel_fraction)
 
         if self.strategy == "last":
             goal_idxs = self._ends[ep_idxs[her_idxs]]
@@ -755,6 +761,9 @@ class HindsightReplayBuffer(ReplayBuffer):
         else:
             # add 1 to go the the end of the episode
             goal_idxs = np.random.randint(last_idxs[her_idxs], self._ends[ep_idxs[her_idxs]] + 1)
+
+        if len(idxs.shape) == 2:
+            goal_idxs = np.expand_dims(goal_idxs, axis=-1)  # Add the stack dimension
 
         # Compute the horizon
         if self.nstep > 1:
@@ -774,27 +783,41 @@ class HindsightReplayBuffer(ReplayBuffer):
                 any_split = 1 if np.random.random() < float(parts[1]) else 0
             else:
                 any_split = int(her_idxs[0].shape[0] * float(parts[1]))
-            goal_idxs[:any_split] = np.random.randint(0, self._size, size=any_split)  # sample any index
+            rand_idx = np.random.randint(0, self._size, size=any_split)
+            if len(goal_idxs.shape) == 2:
+                rand_idx = np.expand_dims(rand_idx, axis=-1)
+            goal_idxs[:any_split] = rand_idx  # sample any index
             # Adjust horizon
             any_idxs = (her_idxs[0][:any_split],)
-            horizon[any_idxs] = -100  # set them back to -100, the default mask value
+            horizon[any_idxs, ...] = -100  # set them back to -100, the default mask value
 
-        if len(idxs.shape) == 2:
-            goal_idxs = np.expand_dims(goal_idxs, axis=-1)  # Add the stack dimension
+        # Optionally support goal sequences
+        if len(idxs.shape) == 2 and self.goal_stack > 1:
+            # Note that these sequences go from the reverse direction.
+            # TODO: currently there is a bug where the goal seq could overal with the obs seq.
+            goal_idxs = goal_idxs + np.arange(1 - self.goal_stack, 1) * self.nstep
 
         # Relabel
         if self.relabel_fraction < 1.0:
-            desired = obs[self.goal_key].copy()
-            desired[her_idxs] = self._obs_buffer[self.achieved_key][goal_idxs]
+            # Copy and set.
+            desired = utils.batch_copy(obs[self.goal_key])
+            utils.set_in_batch(desired, utils.get_from_batch(self._obs_buffer[self.achieved_key], goal_idxs), her_idxs)
         else:
-            desired = self._obs_buffer[self.achieved_key][goal_idxs]
-        kwargs["horizon"] = horizon
+            desired = utils.get_from_batch(self._obs_buffer[self.achieved_key], goal_idxs)
+        
 
+        if stack > 1 and not self.stack_all:
+            horizon = horizon[:, -1]
+            idxs = idxs[..., -1]  # get just the last one
+
+        kwargs["horizon"] = horizon
+        action = utils.get_from_batch(self._action_buffer, idxs)
         reward = np.zeros_like(idxs, dtype=np.float32)
         discount = np.ones_like(idxs, dtype=np.float32)
         for i in range(self.nstep):
-            achieved = self._obs_buffer[self.achieved_key][idxs + i]
-            reward += discount * self.reward_fn(achieved, desired)
+            achieved = utils.get_from_batch(self._obs_buffer[self.achieved_key], idxs + i)
+            if self.reward_fn is not None:  # If we have a reward function compute it
+                reward += discount * self.reward_fn(achieved, desired)
             step_discount = self.discount_fn(achieved, desired) if self.discount_fn is not None else 1.0
             discount *= step_discount * self.discount
 
