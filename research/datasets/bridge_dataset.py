@@ -73,6 +73,15 @@ class BridgeDataset(HindsightReplayBuffer):
             data = np.load(data_file, allow_pickle=True)
             for ep_idx in range(len(data)):
                 action = np.array(data[ep_idx]["actions"])
+                # Convert the actions to be between -1 and 1 uniformly.
+                #
+                # The max delta for positions in the dataset is 0.05
+                action[:, :3] *= 1 / 0.05
+                # The max delta for orientations in the dataset is 0.1
+                action[:, 3:6] *= 1 / 0.1
+                # The gripper value are between 0 and 1.
+                action[:, :-1] = 2 * (action[:, :-1] - 0.5)
+                action = np.clip(action, -1, 1)  # Clip to the max allowed range.
                 if self.use_widowx200:
                     action = np.concatenate((action[:, :3], action[:, -1:]), axis=1)
                 action = np.concatenate((np.expand_dims(self.dummy_action, 0), action), axis=0)

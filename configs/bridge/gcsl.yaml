@@ -6,7 +6,7 @@ optim_kwargs:
 
 network: ActorPolicy
 network_kwargs:
-  encoder_class: BridgeDataEncoder
+  encoder_class: BridgeDataResNetEncoder
   encoder_kwargs:
     pretrain: supervised
     num_kp: 128
@@ -30,7 +30,7 @@ dataset_kwargs:
   relabel_fraction: 1.0
   train: True
   capacity: 800000
-  fetch_every: 32
+  fetch_every: 24
   alloc_goal: False
   stack: 2
   stack_all: False
@@ -59,7 +59,7 @@ trainer_kwargs: # Arguments given to Algorithm.train
   log_freq: 250 # How often to log values
   eval_freq: 1000 # How often to run evals
   eval_fn: null
-  loss_metric: actor_loss
+  loss_metric: loss
   max_validation_steps: 100
   train_dataloader_kwargs:
     num_workers: 4 # Number of dataloader workers.

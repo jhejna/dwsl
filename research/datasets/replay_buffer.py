@@ -804,7 +804,6 @@ class HindsightReplayBuffer(ReplayBuffer):
             utils.set_in_batch(desired, utils.get_from_batch(self._obs_buffer[self.achieved_key], goal_idxs), her_idxs)
         else:
             desired = utils.get_from_batch(self._obs_buffer[self.achieved_key], goal_idxs)
-        
 
         if stack > 1 and not self.stack_all:
             horizon = horizon[:, -1]

@@ -14,7 +14,7 @@ optim_kwargs:
 
 network: ActorCriticPolicy
 network_kwargs:
-  encoder_class: BridgeDataEncoder
+  encoder_class: BridgeDataResNetEncoder
   encoder_kwargs:
     pretrain: supervised
     num_kp: 128
@@ -42,7 +42,7 @@ dataset_kwargs:
   relabel_fraction: 1.0
   train: True
   capacity: 800000
-  fetch_every: 32
+  fetch_every: 24
   alloc_goal: False
   stack: 2
   stack_all: False
