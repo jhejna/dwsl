@@ -80,7 +80,7 @@ class BridgeDataset(HindsightReplayBuffer):
                 # The max delta for orientations in the dataset is 0.1
                 action[:, 3:6] *= 1 / 0.1
                 # The gripper value are between 0 and 1.
-                action[:, :-1] = 2 * (action[:, :-1] - 0.5)
+                action[:, -1:] = 2 * (action[:, -1:] - 0.5)
                 action = np.clip(action, -1, 1)  # Clip to the max allowed range.
                 if self.use_widowx200:
                     action = np.concatenate((action[:, :3], action[:, -1:]), axis=1)

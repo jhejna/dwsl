@@ -1,4 +1,0 @@
-{
-    "base": ["configs/bridge/gcsl.yaml", "configs/bridge/dwsl.yaml"],
-    "network_kwargs.encoder_kwargs.encode_separately": [true, false]
-}

@@ -17,7 +17,6 @@ network_kwargs:
     num_kp: 128
     backbone: 34
     use_state_goal: True
-    encode_separately: False
     stack: 2
   actor_class: ContinuousMLPActor
   actor_kwargs:
