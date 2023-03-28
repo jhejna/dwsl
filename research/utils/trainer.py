@@ -67,6 +67,7 @@ class Trainer(object):
         log_freq: int = 100,
         eval_freq: int = 1000,
         profile_freq: int = -1,
+        checkpoint_freq: Optional[int] = None,
         max_validation_steps: Optional[int] = None,
         loss_metric: Optional[str] = "loss",
         x_axis: str = "steps",
@@ -87,6 +88,7 @@ class Trainer(object):
         self.log_freq = log_freq
         self.eval_freq = eval_freq
         self.profile_freq = profile_freq
+        self.checkpoint_freq = checkpoint_freq
         self.max_validation_steps = max_validation_steps
         self.loss_metric = loss_metric
         self.x_axis = x_axis
@@ -219,7 +221,7 @@ class Trainer(object):
         last_validation_log = (
             0 if self.benchmark else -self.eval_freq
         )  # Ensure that we log the first step, except if we are benchmarking.
-
+        last_checkpoint = 0  # Start at 1 so we don't log the untrained model.
         profile = True if self.profile_freq > 0 else False  # must profile to get all keys for csv log
         self.model.train()
 
@@ -277,6 +279,7 @@ class Trainer(object):
                     logger.dump(step=current_step)
                     # Update the last time we logged.
                     last_train_log = current_step
+                    print("Logging at step", current_step, steps)
 
                 if (current_step - last_validation_log) >= self.eval_freq:
                     self.model.eval()
@@ -310,15 +313,21 @@ class Trainer(object):
 
                     # Eval Logger dump to CSV
                     logger.dump(step=current_step, eval=True)  # Mark True on the eval flag
-                    last_validation_log = current_step
+                    # Save the final model
                     self.model.save(path, "final_model", model_metadata)  # Also save the final model every eval period.
-
                     # Put the model back in train mode.
                     self.model.train()
                     last_validation_log = current_step
 
+                if self.checkpoint_freq is not None and (current_step - last_checkpoint) >= self.checkpoint_freq:
+                    # Save a checkpoint
+                    print("Saving at step", current_step, steps)
+                    model_metadata = dict(current_step=current_step, epochs=epochs, steps=steps)
+                    self.model.save(path, "model_" + str(current_step), model_metadata)
+                    last_checkpoint = current_step
+
                 current_step = new_current_step  # Update the current step
-                if current_step >= self.total_steps:
+                if current_step > self.total_steps:
                     break  # We need to break in the middle of an epoch.
 
                 profile = self.profile_freq > 0 and steps % self.profile_freq == 0
