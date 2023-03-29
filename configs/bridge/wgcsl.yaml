@@ -33,7 +33,7 @@ eval_env: GoalConditionedWidowX200Env
 dataset: BridgeDataset
 dataset_kwargs:
   path: /iliad/group/datasets/bridge_data/numpy_fixed
-  discount: 1.0
+  discount: 0.99
   batch_size: 256
   relabel_fraction: 1.0
   train: True

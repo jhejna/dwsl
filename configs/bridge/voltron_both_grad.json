@@ -1,0 +1,7 @@
+{
+    "base": ["configs/bridge/dwsl.yaml", "configs/bridge/wgcsl.yaml"],
+    "network_kwargs.encoder_class": ["VoltronCondEncoder", "VoltronDualEncoder"],
+    "alg_kwargs.encoder_gradients": ["actor"],
+    "dataset_kwargs.batch_size": [64],
+    "seed": [0]
+}
