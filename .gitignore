@@ -2,6 +2,7 @@
 propogate_from_main.sh
 demos/
 plots/
+cache/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

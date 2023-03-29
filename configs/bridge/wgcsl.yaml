@@ -16,9 +16,6 @@ network: ActorCriticPolicy
 network_kwargs:
   encoder_class: BridgeDataResNetEncoder
   encoder_kwargs:
-    pretrain: supervised
-    num_kp: 128
-    backbone: 34
     use_state_goal: True
     stack: 2
   actor_class: ContinuousMLPActor
@@ -80,5 +77,6 @@ trainer_kwargs: # Arguments given to Algorithm.train
     num_workers: 2
   profile_freq: 250
   benchmark: True
+  checkpoint_freq: 20000
 
 seed: null
