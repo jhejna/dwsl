@@ -1,6 +1,0 @@
-{
-    "base": ["configs/bridge/gcsl.yaml", "configs/bridge/dwsl.yaml"],
-    "network_kwargs.encoder_class": ["VoltronCondEncoder", "VoltronDualEncoder"],
-    "dataset_kwargs.batch_size": [64],
-    "seed": [0]
-}

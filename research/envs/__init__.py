@@ -5,7 +5,6 @@ import d4rl  # registers the d4rl envs
 # Import wrappers
 from .gym_robotics import GymSparseRewardWrapper, FetchImageWrapper
 from .antmaze import AntMazeGoalConditionedWrapper
-from .widowx import GoalConditionedWidowX200Env
 
 import gym
 from gym.envs import register
