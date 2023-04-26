@@ -91,6 +91,13 @@ For more details on this, see the [research-lightning repository](https://github
 This framework has an MIT license as found in the [LICENSE](LICENSE) file.
 
 If you use this package, please cite our paper. Here is the associated Bibtex:
+
 ```
-TODO
+@InProceedings{hejna23distance,
+  title = 	 {Distance Weighted Supervised Learning for Offline Interaction Data},
+  author =       {Hejna, Joey and Gao, Jensen and Sadigh, Dorsa},
+  booktitle = 	 {Proceedings of the 40th International Conference on Machine Learning},
+  series = 	 {Proceedings of Machine Learning Research},
+  publisher =    {PMLR}
+}
 ```
