@@ -13,7 +13,7 @@ network: ActorValuePolicy
 network_kwargs:
   encoder_class: BridgeDataResNetEncoder
   encoder_kwargs:
-    use_state_goal: True
+    use_state_goal: False
     stack: 2
   actor_class: ContinuousMLPActor
   actor_kwargs:

@@ -1,0 +1,4 @@
+{
+    "base": ["configs/bridge/gcsl.yaml", "configs/bridge/dwsl.yaml"],
+    "seed": [0]
+}
