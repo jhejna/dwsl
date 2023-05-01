@@ -1,6 +1,6 @@
 # Distance Weighted Supervised Learning (DWSL)
 
-This is the official codebase for Distance Weighted Supervised Learning (DWSL) by Joey Hejna, Jensen Gao, and Dorsa Sadigh. This repository contains code for dwsl, all baselines, environments, and datasets. Our implementations are based on [research-lightning](https://github.com/jhejna/research-lightning). For more details on some of the advanced features in the repisotry, see the research-lightning repo.
+This is the official codebase for [Distance Weighted Supervised Learning (DWSL)](https://arxiv.org/abs/2304.13774) by Joey Hejna, Jensen Gao, and Dorsa Sadigh. This repository contains code for dwsl, all baselines, environments, and datasets. Our implementations are based on [research-lightning](https://github.com/jhejna/research-lightning). For more details on some of the advanced features in the repisotry, see the research-lightning repo.
 
 In order to run all the experiments, one must download or create the datasets.
 
@@ -99,5 +99,6 @@ If you use this package, please cite our paper. Here is the associated Bibtex:
   booktitle = 	 {Proceedings of the 40th International Conference on Machine Learning},
   series = 	 {Proceedings of Machine Learning Research},
   publisher =    {PMLR}
+  url = {https://arxiv.org/abs/2304.13774}
 }
 ```
