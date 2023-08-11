@@ -1,0 +1,14 @@
+{
+    "base": [
+        "configs/antmaze/gcsl.yaml",
+        "configs/antmaze/wgcsl.yaml",
+        "configs/antmaze/iql.yaml",
+        "configs/antmaze/gofar.yaml"
+    ],
+    "paired_keys": [
+        ["eval_env", "dataset_kwargs.name"]
+    ],
+    "eval_env": ["antmaze-umaze-v2", "antmaze-umaze-diverse-v2", "antmaze-medium-play-v2", "antmaze-medium-diverse-v2", "antmaze-large-play-v2", "antmaze-large-diverse-v2"],
+    "dataset_kwargs.name":  ["antmaze-umaze-v2", "antmaze-umaze-diverse-v2", "antmaze-medium-play-v2", "antmaze-medium-diverse-v2", "antmaze-large-play-v2", "antmaze-large-diverse-v2"],
+    "seed": [0, 1, 2, 3, 4]
+}

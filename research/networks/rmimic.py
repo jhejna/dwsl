@@ -228,4 +228,3 @@ class SpatialSoftmax(torch.nn.Module):
             feature_keypoints = (feature_keypoints, feature_covar)
 
         return feature_keypoints
-

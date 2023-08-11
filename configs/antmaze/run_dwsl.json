@@ -1,0 +1,13 @@
+{
+    "base": [
+        "configs/antmaze/dwsl.yaml",
+        "configs/antmaze/dwsl_b.yaml"
+    ],
+    "paired_keys": [
+        ["eval_env", "dataset_kwargs.name", "network_kwargs.value_kwargs.bins"]
+    ],
+    "eval_env": ["antmaze-umaze-v2", "antmaze-umaze-diverse-v2", "antmaze-medium-play-v2", "antmaze-medium-diverse-v2", "antmaze-large-play-v2", "antmaze-large-diverse-v2"],
+    "dataset_kwargs.name":  ["antmaze-umaze-v2", "antmaze-umaze-diverse-v2", "antmaze-medium-play-v2", "antmaze-medium-diverse-v2", "antmaze-large-play-v2", "antmaze-large-diverse-v2"],
+    "alg_kwargs.bins":  [100, 100, 150, 150, 200, 200],
+    "seed": [0, 1, 2, 3, 4]
+}
